@@ -22,7 +22,6 @@ from utils.torch_utils import select_device, load_classifier, time_synchronized
 
 def image_with_color(size):
     color_image = np.zeros(shape=[size[0], size[1]*2, 3], dtype=np.uint8)
-    #print(color_image.shape)
     return color_image
 
 def overlay(front_image, back_image, position=(0, 0)):
@@ -65,14 +64,11 @@ def alpha_beta_tracking(detect_bbox, track_bbox, alpha=1, beta=0.1):
     track_bbox['age'] +=1
     track_bbox['xyxy'] = detect_bbox['xyxy']
     
-    
     #clss 누적
-    
     if len(track_bbox['clss']) == 9:
         track_bbox['clss'][0] = detect_bbox['clss'][0]
     else : 
         track_bbox['clss'].append(detect_bbox['clss'][0])
-    #track_bbox['cls'] = statistics.mode(track_bbox['clss'])
     track_bbox['cls'] = int(stats.mode(track_bbox['clss'])[0])
     '''
     #class 단일
@@ -80,14 +76,30 @@ def alpha_beta_tracking(detect_bbox, track_bbox, alpha=1, beta=0.1):
     '''
     return track_bbox
 
+def set_det(classlist):
+    for i in range(len(classlist)):
+        classlist[i]=list(set(classlist[i]))
+    return classlist
+
+def area_count(area, detect_box, id_list):
+    ct = 0
+    for key, value in area.items():
+        if (value[0]<= detect_box['ct'][0] <= value[2]) and (value[1]<=detect_box['ct'][1]<=value[3]):
+            id_list[int(detect_box['cls'])][ct].append(detect_box['id'])
+            id_list[int(detect_box['cls'])][ct] = list(set(id_list[int(detect_box['cls'])][ct]))
+        ct+=1
+    return id_list
+
+ 
+
 def detect(save_img=False):
     out, source, weights, view_img, save_txt, imgsz = \
         opt.output, opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
     webcam = source.isnumeric() or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
-    #webcam = source
     prevTime = 0
     curTime = 0
     prevTime1 = 0
+
     # Initialize
     set_logging()
     device = select_device(opt.device)
@@ -122,20 +134,15 @@ def detect(save_img=False):
         
         save_img = True
         dataset = LoadImages_aidrone(source, img_size=imgsz, fx = fx, fy = fy)
-        #print(dataset)
         vid0 = cv2.VideoCapture(source)
         ret00, frame00 = vid0.read()
         video_size = frame00.shape
         video_size2 = [int(video_size[0]*fy), int(video_size[1]*fx), 3]
-        #print(video_size2)
         bg_img = image_with_color(video_size2) # x축 2배로 그림        
-        
-        
         
     # Get names and colors
     names = model.module.names if hasattr(model, 'module') else model.names
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
-
 
     #210223 Tracker 
     alpha=1
@@ -147,8 +154,26 @@ def detect(save_img=False):
     conf_thres = opt.conf_thres
     tracks = []
     circle_tracks=[]
-    #tracker = Tracker(alpha=1, beta=0.1, v_x=1,v_y=1, conf_thres = conf_thres)
-    f = open('tracks.txt', 'w')
+    
+    #AREA
+    area_s={}
+    area_s['west out'] = [0,162,142,276]
+    area_s['south out'] =[277,474,484,540]
+    area_s['east out'] =[843,294,960,371]
+    area_s['north out'] =[509,0,693,78]
+    area_s['west in'] = [0,277,142,434]
+    area_s['south in'] =[485,474,672,540]
+    area_s['east in'] =[843,138,960,293]
+    area_s['north in'] =[310,0,508,78]
+    
+    area_t=[]
+    for i in range(6):
+        area_c = []
+        for j in range(8):
+            area_c.append([])
+        area_t.append(area_c)
+    
+    #f = open('tracks.txt', 'w')
     # Run inference
     t0 = time.time()
     img = torch.zeros((1, 3, imgsz,  imgsz), device=device)  # init img
@@ -168,7 +193,7 @@ def detect(save_img=False):
         # Apply NMS
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
         t2 = time_synchronized()
-        #print('pred:',pred)
+
         # Apply Classifier
         if classify:
             pred = apply_classifier(pred, modelc, img, im0s)
@@ -176,8 +201,7 @@ def detect(save_img=False):
         # Process detections
         for i, det in enumerate(pred):  # detections per image
             
-            ms += 1            
-            
+            ms += 1
             curTime = time.time()
             if webcam:  # batch_size >= 1
                 p, s, im0 = path[i], '%g: ' % i, im0s[i].copy()
@@ -208,14 +232,13 @@ def detect(save_img=False):
             cv2.putText(bg_img, t_z, (0,120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
             cv2.putText(bg_img, bi_z, (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
             cv2.putText(bg_img, e_z, (0,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-            cv2.putText(bg_img, str(ms), (0,240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+            #cv2.putText(bg_img, str(ms), (0,240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
             
-            #print('det:',det)
-            #print('class :',det[:,-1])
-            '''
-            if ms == 2513:
+            
+            if ms == 513:
                 raise StopIteration
-            '''
+            
+            
             if det is not None and len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
@@ -277,23 +300,30 @@ def detect(save_img=False):
                         
                     if max_iou > 0.1:
                         iou_index = iou_test.index(max_iou)
-                        new_track = alpha_beta_tracking(det, tracks[iou_index], alpha=1, beta=0.1)
+                        new_track = alpha_beta_tracking(det, tracks[iou_index], alpha=alpha, beta=beta)
                         new_tracks.append(new_track)
                         del tracks[iou_index]
                     else :
                         dets.append(det)
                 
                 tracks2, id_count = init_track(tracks2, dets,id_count,conf_thres)
-                #print(tracks2)        
+                # print('*************************************************************')
+                # print(new_tracks)        
+                # print('-------------------------------------------------------------')
+                # print(tracks2)        
+                # print('ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo')
+                # print(tracks)
+                
                 if len(tracks) > 0:
                     new_tracks = new_tracks # + tracks
                 #print(len(new_tracks),len(tracks2), id_count)
                 tracks = new_tracks + tracks2
-
-                circle_tracks+=tracks
+                # print('ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo')
+                # print(tracks)
+                circle_tracks.append(tracks)
                 if len(circle_tracks)>10:
                     del circle_tracks[0]
-                #print('33333333',circle_tracks, len(circle_tracks))
+                # print('33333333',circle_tracks, len(circle_tracks))
                 '''    
                 for i in circle_tracks:
                     for j in circle_tracks[i]:
@@ -311,6 +341,7 @@ def detect(save_img=False):
                 f.write('\n')
                 '''
                 
+                
                 #print(ms, '\n', detections, '\n', new_tracks, '\n', tracks2, '\n', tracks)
                 #print(ms,time.time()-t11, len(tracks))
                 
@@ -318,6 +349,8 @@ def detect(save_img=False):
                 #for det in detections:
                 for det in tracks:
                     xyxy,conf,cls = det['xyxy'], det['score'], det['cls']
+                    area_t = area_count(area_s, det, area_t)
+                    print('value,',len(tracks),':', area_t)
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         with open(txt_path + '.txt', 'a') as fd:
@@ -331,9 +364,9 @@ def detect(save_img=False):
                             label = '%s %.2f %s' % (names[int(cls)], conf, det['id'])
                             plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=2) # 네모굵기
 
-                            label_x = int(video_size2[1]*1.5)+0
-                            label_y = int((xyxy[1]+xyxy[3])/2)                              
-                            cv2.putText(bg_img, label, (label_x,label_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),1)
+                            # label_x = int(video_size2[1]*1.5)+0
+                            # label_y = int((xyxy[1]+xyxy[3])/2)                              
+                            # cv2.putText(bg_img, label, (label_x,label_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),1)
                             
                             #좌측상단에 태깅 추가
                             cv2.putText(bg_img, p_d, (0,30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
@@ -391,14 +424,11 @@ def detect(save_img=False):
 
                         fourcc = 'mp4v'  # output video codec
                         fps = vid_cap.get(cv2.CAP_PROP_FPS)
-                        w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                        h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        print(w,h)
+
                         w1 = int(over_img_size[1])
                         h1 = int(over_img_size[0])
                         print(w1,h1)
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (w1, h1))
-                        
                     vid_writer.write(over_img)
                     ##
         sec1 = curTime1 - prevTime1
