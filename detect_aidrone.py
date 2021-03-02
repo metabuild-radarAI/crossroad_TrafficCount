@@ -86,6 +86,7 @@ def detect(save_img=False):
     webcam = source.isnumeric() or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
     #webcam = source
     prevTime = 0
+    curTime = 0
     prevTime1 = 0
     # Initialize
     set_logging()
@@ -174,8 +175,8 @@ def detect(save_img=False):
 
         # Process detections
         for i, det in enumerate(pred):  # detections per image
-            #
-            ms += 1
+            
+            ms += 1            
             
             curTime = time.time()
             if webcam:  # batch_size >= 1
@@ -190,7 +191,7 @@ def detect(save_img=False):
 
             #0257
             person_count, car_count, bus_count, truck_count,bike_count, etc_count = 0,0,0,0,0,0
-            bg_img[0:240,0:240] = np.zeros((240,240,3),np.uint8)
+            bg_img[0:270,0:240] = np.zeros((270,240,3),np.uint8)
             #210118 우측 배경
             bg_img[:,int(video_size2[1]*1.5):] = np.zeros((int(video_size2[0]),int(video_size2[1]/2),3),np.uint8)
 
@@ -207,13 +208,14 @@ def detect(save_img=False):
             cv2.putText(bg_img, t_z, (0,120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
             cv2.putText(bg_img, bi_z, (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
             cv2.putText(bg_img, e_z, (0,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+            cv2.putText(bg_img, str(ms), (0,240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
             
             #print('det:',det)
             #print('class :',det[:,-1])
-            
+            '''
             if ms == 2513:
                 raise StopIteration
-
+            '''
             if det is not None and len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
@@ -263,12 +265,17 @@ def detect(save_img=False):
                 new_tracks = []
                 tracks2 = []
                 t11 = time.time()
+
                 for det in detections :
                     iou_test=[]
                     for i in range(len(tracks)):
                         iou_test.append(float(bbox_iou(torch.tensor(det['xyxy']),torch.tensor(tracks[i]['xyxy']))))
-                    max_iou = max(iou_test)
-                    if max_iou > 0.7:
+                    if len(iou_test)==0:
+                        continue
+                    else :
+                        max_iou = max(iou_test)
+                        
+                    if max_iou > 0.1:
                         iou_index = iou_test.index(max_iou)
                         new_track = alpha_beta_tracking(det, tracks[iou_index], alpha=1, beta=0.1)
                         new_tracks.append(new_track)
@@ -282,6 +289,7 @@ def detect(save_img=False):
                     new_tracks = new_tracks # + tracks
                 #print(len(new_tracks),len(tracks2), id_count)
                 tracks = new_tracks + tracks2
+
                 circle_tracks+=tracks
                 if len(circle_tracks)>10:
                     del circle_tracks[0]
@@ -361,6 +369,21 @@ def detect(save_img=False):
                 if dataset.mode == 'images':
                     cv2.imwrite(save_path, im0)
                 else:
+                    ##210118------------------------------------------------------------
+                    strs = "FPS : %0.1f" %fpss
+                    cv2.putText(bg_img, strs, (0,210), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+                    video_size = im0.shape
+                    
+                    over_img = overlay(im0, bg_img, position=(int(video_size[1]/2), 0))
+                    over_img_size = over_img.shape
+                    cv2.imshow(p, over_img)
+                    #time.sleep(0.5)
+                    if cv2.waitKey(1) == ord('w'):
+                        cv2.imwrite("aidrone.png",im0)
+                        cv2.imwrite("aidrone2.png",over_img)
+                    if cv2.waitKey(1) == ord('q'):  # q to quit
+                        raise StopIteration
+                    
                     if vid_path != save_path:  # new video
                         vid_path = save_path
                         if isinstance(vid_writer, cv2.VideoWriter):
@@ -370,21 +393,13 @@ def detect(save_img=False):
                         fps = vid_cap.get(cv2.CAP_PROP_FPS)
                         w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                         h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (w, h))
-
-                    ##210118------------------------------------------------------------
-                    strs = "FPS : %0.1f" %fpss
-                    cv2.putText(bg_img, strs, (0,210), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                    video_size = im0.shape
-                    over_img = overlay(im0, bg_img, position=(int(video_size[1]/2), 0))
-                    
-                    cv2.imshow(p, over_img)
-                    #time.sleep(0.5)
-                    if cv2.waitKey(1) == ord('w'):
-                        cv2.imwrite("aidrone.png",im0)
-                        cv2.imwrite("aidrone2.png",over_img)
-                    if cv2.waitKey(1) == ord('q'):  # q to quit
-                        raise StopIteration
+                        print(w,h)
+                        w1 = int(over_img_size[1])
+                        h1 = int(over_img_size[0])
+                        print(w1,h1)
+                        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (w1, h1))
+                        
+                    vid_writer.write(over_img)
                     ##
         sec1 = curTime1 - prevTime1
         prevTime1 = curTime1
