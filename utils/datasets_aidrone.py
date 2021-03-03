@@ -151,7 +151,11 @@ class LoadImages_aidrone:  # for inference
             # Read video
             self.mode = 'video'
             ret_val, img0 = self.cap.read()
-            img0 = cv2.resize(img0,dsize=(0,0), fx=self.fx, fy=self.fy)
+            if ret_val:
+                img0 = cv2.resize(img0,dsize=(0,0), fx=self.fx, fy=self.fy)
+            else:
+                pass            
+            
             if not ret_val:
                 self.count += 1
                 self.cap.release()
@@ -161,7 +165,7 @@ class LoadImages_aidrone:  # for inference
                     path = self.files[self.count]
                     self.new_video(path)
                     ret_val, img0 = self.cap.read()
-
+                    
             self.frame += 1
             print('video %g/%g (%g/%g) %s: ' % (self.count + 1, self.nf, self.frame, self.nframes, path), end='')
 
