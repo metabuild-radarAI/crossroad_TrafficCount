@@ -499,8 +499,8 @@ def detect(save_img=False):
                     cv2.imshow(p, over_img)
                     #time.sleep(0.5)
                     if cv2.waitKey(1) == ord('w'):
-                        cv2.imwrite("aidrone.png",im0)
-                        cv2.imwrite("aidrone2.png",over_img)
+                        cv2.imwrite("/images/aidrone.png",im0)
+                        cv2.imwrite("/images/aidrone2.png",over_img)
                     if cv2.waitKey(1) == ord('q'):  # q to quit
                         raise StopIteration
                     
