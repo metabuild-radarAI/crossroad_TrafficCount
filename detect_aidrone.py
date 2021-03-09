@@ -175,6 +175,7 @@ def detect(save_img=False):
         
         save_img = True
         dataset = LoadImages_aidrone(source, img_size=imgsz, fx = fx, fy = fy)
+        print(dataset)
         vid0 = cv2.VideoCapture(source)
         ret00, frame00 = vid0.read()
         video_size = frame00.shape
