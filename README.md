@@ -21,3 +21,9 @@ $ conda env create -f crossroad_service.yml
 $ python detect_aidrone.py --weights 300ep_uhd_c6_best.pt --source drone_video2.MP4
 ```
 
+학습한 [pt파일]과 예제에 사용된 [영상]은 링크에 첨부되어있습니다.
+영상의 Counting 영역을 지정하기 위한 오토툴은 현재 구상중에 있습니다.
+그 전까지는 영상을 실행하여서 w키를 눌러서 이미지를 저장시키며 aidrone.png를 통해 영역의 좌표를 직접 계산하여야 합니다.
+
+
+
