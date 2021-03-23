@@ -16,6 +16,12 @@ conda 가상환경 및 pip을 이용하여 환경을 세팅할수 있도록 하�
 $ conda env create -f crossroad_service.yml
 ```
 
+서비스를 사용하기 위해 학습하는 명령어는 아래와 같습니다.
+#설명추가
+```bash
+$ python detect_aidrone.py --weights 300ep_uhd_c6_best.pt --source drone_video2.MP4
+```
+
 서비스 사용 방법중 동영상의 경우 아래와 같습니다.
 ```bash
 $ python detect_aidrone.py --weights 300ep_uhd_c6_best.pt --source drone_video2.MP4

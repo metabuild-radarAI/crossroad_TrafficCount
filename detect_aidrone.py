@@ -375,8 +375,9 @@ def detect(save_img=False):
                         #label = '%s %.2f' % (names[int(cls)], conf)
                         #확률 삭제
                         if cls==0 or cls==1 or cls==2 or cls==3 or cls==4 or cls==5:
-                            #label = '%s, %s' % (names[int(cls)],det['id'])
-                            label = '%s, %s, %s, %s, %s' % (det['id'], names[int(cls)], det['age'], det['ct'][0], det['ct'][1])
+                            label = '%s, %s, %s' % (det['id'], names[int(cls)], det['age'])
+                            #좌표확인용
+                            #label = '%s, %s, %s, %s, %s' % (det['id'], names[int(cls)], det['age'], det['ct'][0], det['ct'][1])
                             plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=2) # 네모굵기
                             
                             #좌측상단에 태깅 추가

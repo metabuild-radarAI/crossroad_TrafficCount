@@ -1,0 +1,6 @@
+train: /home/radar01/dataset/aidrone_crossroad_4050/train/images
+val: /home/radar01/dataset/aidrone_crossroad_4050/val/images
+
+nc: 6
+names: ['car','truck','bus','person','bike','etc vehicle']
+#semiclass = ['승용차','화물차','버스','보행자','작업자','작업차','화재']
