@@ -478,7 +478,7 @@ def detect(save_img=False):
             #print('%s Done. (%.3fs)' % (s, t2 - t1))
             sec = curTime - prevTime
             prevTime = curTime
-            fpss = 2/sec
+            fpss = 1/sec
             #print('Estimated fps 1 : {0}'.format(fps))
 
             # Stream results
