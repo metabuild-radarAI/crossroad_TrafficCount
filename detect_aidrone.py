@@ -195,350 +195,343 @@ def detect(save_img=False):
     _ = model(img.half() if half else img) if device.type != 'cpu' else None  # run once
     for path, img, im0s, vid_cap in dataset:
         frame_ori += 1
-        if frame_ori % 2 ==0:
-            #curTime = time.time()
-            over_img = overlay(im0s, bg_img, position=(int(video_size[1]/2), 0))
-            cv2.imshow(path, over_img)
-            vid_writer.write(over_img)
-            pass
-        else :
-            # print(frame_ori)
-            curTime1 = time.time()
-            img = torch.from_numpy(img).to(device)
-            img = img.half() if half else img.float()  # uint8 to fp16/32
-            img /= 255.0  # 0 - 255 to 0.0 - 1.0
-            if img.ndimension() == 3:
-                img = img.unsqueeze(0)
+        # print(frame_ori)
+        curTime1 = time.time()
+        img = torch.from_numpy(img).to(device)
+        img = img.half() if half else img.float()  # uint8 to fp16/32
+        img /= 255.0  # 0 - 255 to 0.0 - 1.0
+        if img.ndimension() == 3:
+            img = img.unsqueeze(0)
 
-            # Inference
-            t1 = time_synchronized()
-            pred = model(img, augment=opt.augment)[0]
+        # Inference
+        t1 = time_synchronized()
+        pred = model(img, augment=opt.augment)[0]
 
-            # Apply NMS
-            pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
-            t2 = time_synchronized()
+        # Apply NMS
+        pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+        t2 = time_synchronized()
 
-            # Apply Classifier
-            if classify:
-                pred = apply_classifier(pred, modelc, img, im0s)
+        # Apply Classifier
+        if classify:
+            pred = apply_classifier(pred, modelc, img, im0s)
 
-            # Process detections
-            for i, det in enumerate(pred):  # detections per image
-                ms += 1
-                # if ms % 2 ==0 : 
-                #     continue
-                # else :
-                #print(ms)
-                curTime = time.time()
-                if webcam:  # batch_size >= 1
-                    p, s, im0 = path[i], '%g: ' % i, im0s[i].copy()
-                else:
-                    p, s, im0 = path, '', im0s
+        # Process detections
+        for i, det in enumerate(pred):  # detections per image
+            ms += 1
+            # if ms % 2 ==0 : 
+            #     continue
+            # else :
+            #print(ms)
+            curTime = time.time()
+            if webcam:  # batch_size >= 1
+                p, s, im0 = path[i], '%g: ' % i, im0s[i].copy()
+            else:
+                p, s, im0 = path, '', im0s
 
-                save_path = str(Path(out) / Path(p).name)
-                txt_path = str(Path(out) / Path(p).stem) + ('_%g' % dataset.frame if dataset.mode == 'video' else '')
-                s += '%gx%g ' % img.shape[2:]  # print string
-                gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+            save_path = str(Path(out) / Path(p).name)
+            txt_path = str(Path(out) / Path(p).stem) + ('_%g' % dataset.frame if dataset.mode == 'video' else '')
+            s += '%gx%g ' % img.shape[2:]  # print string
+            gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
 
-                #0257
-                person_count, car_count, bus_count, truck_count,bike_count, etc_count = 0,0,0,0,0,0
-                bg_img[0:540,0:480] = np.zeros((540,480,3),np.uint8)
-                bg_img[0:540,1440:1920] = np.zeros((540,480,3),np.uint8)
-                #210118 우측 배경
-                bg_img[:,int(video_size2[1]*1.5):] = np.zeros((int(video_size2[0]),int(video_size2[1]/2),3),np.uint8)
+            #0257
+            person_count, car_count, bus_count, truck_count,bike_count, etc_count = 0,0,0,0,0,0
+            bg_img[0:540,0:480] = np.zeros((540,480,3),np.uint8)
+            bg_img[0:540,1440:1920] = np.zeros((540,480,3),np.uint8)
+            #210118 우측 배경
+            bg_img[:,int(video_size2[1]*1.5):] = np.zeros((int(video_size2[0]),int(video_size2[1]/2),3),np.uint8)
 
+            #
+            p_z = 'Person : '
+            c_z = 'Car : '
+            b_z = 'Bus : '
+            t_z = 'Truck : '
+            bi_z = 'Bike : '
+            e_z = 'etc : '
+            cv2.putText(bg_img, p_z, (0,30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+            cv2.putText(bg_img, c_z, (0,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+            cv2.putText(bg_img, b_z, (0,90), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+            cv2.putText(bg_img, t_z, (0,120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+            cv2.putText(bg_img, bi_z, (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+            cv2.putText(bg_img, e_z, (0,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+            #cv2.putText(bg_img, str(ms), (0,240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+            
+            
+            # if ms == 513:
+            #     raise StopIteration
+            
+            
+            if det is not None and len(det):
+                # Rescale boxes from img_size to im0 size
+                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+
+                # Print results
+                for c in det[:, -1].unique():
+                    n = (det[:, -1] == c).sum()  # detections per class
+                    s += '%g %ss, ' % (n, names[int(c)])  # add to string
+                    #numdetect += '%ss : %g \n' % (names[int(c)], n)  # count number in image 숫자세기 
+                
+                #태깅용 카운트
+                car_count = (det[:,-1]==0).sum()
+                truck_count = (det[:,-1]==1).sum()
+                bus_count = (det[:,-1]==2).sum()
+                person_count = (det[:,-1]==3).sum()
+                bike_count = (det[:,-1]==4).sum()
+                etc_count = (det[:,-1]==5).sum()
+                
+                p_d = 'Person : %g' % (person_count)
+                c_d = 'Car : %g' % (car_count)
+                b_d = 'Bus : %g' % (bus_count)
+                t_d = 'Truck : %g' % (truck_count)
+                bi_d = 'Bike : %g' % (bike_count)
+                e_d = 'etc : %g' % (etc_count)
+                detections = []
+                # Write results
+                for *xyxy, conf, cls in reversed(det):
+                    detection={}
+                    detection['xyxy'] = xyxy
+                    detection['coord'] = [int(xyxy[0]),int(xyxy[1]),int(xyxy[2]),int(xyxy[3])]
+                    detection['ct'] = [int((xyxy[0] + xyxy[2]) / 2),int((xyxy[1] + xyxy[3]) / 2)]
+                    detection['score'] = conf
+                    detection['clss'] = [int(cls)]
+                    detection['time'] = ms
+                    detection['v_x'] = 1
+                    detection['v_y'] = 1
+                    detections.append(detection)
+                    #print(xyxy)
+
+                if ms == 1:
+                    tracks, id_count = init_track(tracks, detections,id_count,conf_thres)
+                #print('\n')
+                #print(ms, tracks,'\n', detections)
+                #print(float(bbox_iou(torch.tensor(detections[0]['xyxy']),torch.tensor(tracks[0]['xyxy']))))
+                #print(torch.tensor(detections[0]['xyxy']),torch.tensor(tracks[0]['xyxy']))
+
+                dets = []
+                new_tracks = []
+                tracks2 = []
+                t11 = time.time()
+
+                for det in detections :
+                    iou_test=[]
+                    for i in range(len(tracks)):
+                        iou_test.append(float(bbox_iou(torch.tensor(det['xyxy']),torch.tensor(tracks[i]['xyxy']))))
+                    if len(iou_test)==0:
+                        continue
+                    else :
+                        max_iou = max(iou_test)
+                        
+                    if max_iou > 0.1:
+                        iou_index = iou_test.index(max_iou)
+                        new_track = alpha_beta_tracking(det, tracks[iou_index], alpha=alpha, beta=beta)
+                        new_tracks.append(new_track)
+                        del tracks[iou_index]
+                    else :
+                        dets.append(det)
+                
+                tracks2, id_count = init_track(tracks2, dets,id_count,conf_thres)
+                # print('*************************************************************')
+                # print(new_tracks)        
+                # print('-------------------------------------------------------------')
+                # print(tracks2)        
+                # print('ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo')
+                # print(tracks)
+                
+                if len(tracks) > 0:
+                    new_tracks = new_tracks # + tracks
+                #print(len(new_tracks),len(tracks2), id_count)
+                tracks = new_tracks + tracks2
+                # print('ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo')
+                # print(tracks)
+                circle_tracks.append(tracks)
+                if len(circle_tracks)>10:
+                    del circle_tracks[0]
+                # print('33333333',circle_tracks, len(circle_tracks))
+                '''    
+                for i in circle_tracks:
+                    for j in circle_tracks[i]:
+                        cv2.circle(im0, circle_tracks[i][j]['ct'], 1, (0,0,255), -1)
+                '''
                 #
-                p_z = 'Person : '
-                c_z = 'Car : '
-                b_z = 'Bus : '
-                t_z = 'Truck : '
-                bi_z = 'Bike : '
-                e_z = 'etc : '
-                cv2.putText(bg_img, p_z, (0,30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                cv2.putText(bg_img, c_z, (0,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                cv2.putText(bg_img, b_z, (0,90), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                cv2.putText(bg_img, t_z, (0,120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                cv2.putText(bg_img, bi_z, (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                cv2.putText(bg_img, e_z, (0,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                #cv2.putText(bg_img, str(ms), (0,240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
                 
+                '''
+                f.write('\n')
+                f.write(str(new_tracks))
+                f.write('\n')
+                f.write(str(tracks2))
+                f.write('\n')
+                f.write(str(tracks))
+                f.write('\n')
+                '''
                 
-                # if ms == 513:
-                #     raise StopIteration
+                #print(ms, '\n', detections, '\n', new_tracks, '\n', tracks2, '\n', tracks)
+                #print(ms,time.time()-t11, len(tracks))
                 
-                
-                if det is not None and len(det):
-                    # Rescale boxes from img_size to im0 size
-                    det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+                #for det in detections:
+                for det in tracks:
+                    xyxy,conf,cls = det['xyxy'], det['score'], det['cls']
+                    #영역 카운팅 알고리즘
+                    area_t = area_count(area_s, det, area_t)
+                    #print('value,',len(tracks),':', area_t)
+                    if save_txt:  # Write to file
+                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                        with open(txt_path + '.txt', 'a') as fd:
+                            fd.write(('%g ' * 5 + '\n') % (cls, *xywh))  # label format
 
-                    # Print results
-                    for c in det[:, -1].unique():
-                        n = (det[:, -1] == c).sum()  # detections per class
-                        s += '%g %ss, ' % (n, names[int(c)])  # add to string
-                        #numdetect += '%ss : %g \n' % (names[int(c)], n)  # count number in image 숫자세기 
-                    
-                    #태깅용 카운트
-                    car_count = (det[:,-1]==0).sum()
-                    truck_count = (det[:,-1]==1).sum()
-                    bus_count = (det[:,-1]==2).sum()
-                    person_count = (det[:,-1]==3).sum()
-                    bike_count = (det[:,-1]==4).sum()
-                    etc_count = (det[:,-1]==5).sum()
-                    
-                    p_d = 'Person : %g' % (person_count)
-                    c_d = 'Car : %g' % (car_count)
-                    b_d = 'Bus : %g' % (bus_count)
-                    t_d = 'Truck : %g' % (truck_count)
-                    bi_d = 'Bike : %g' % (bike_count)
-                    e_d = 'etc : %g' % (etc_count)
-                    detections = []
-                    # Write results
-                    for *xyxy, conf, cls in reversed(det):
-                        detection={}
-                        detection['xyxy'] = xyxy
-                        detection['coord'] = [int(xyxy[0]),int(xyxy[1]),int(xyxy[2]),int(xyxy[3])]
-                        detection['ct'] = [int((xyxy[0] + xyxy[2]) / 2),int((xyxy[1] + xyxy[3]) / 2)]
-                        detection['score'] = conf
-                        detection['clss'] = [int(cls)]
-                        detection['time'] = ms
-                        detection['v_x'] = 1
-                        detection['v_y'] = 1
-                        detections.append(detection)
-                        #print(xyxy)
-
-                    if ms == 1:
-                        tracks, id_count = init_track(tracks, detections,id_count,conf_thres)
-                    #print('\n')
-                    #print(ms, tracks,'\n', detections)
-                    #print(float(bbox_iou(torch.tensor(detections[0]['xyxy']),torch.tensor(tracks[0]['xyxy']))))
-                    #print(torch.tensor(detections[0]['xyxy']),torch.tensor(tracks[0]['xyxy']))
-
-                    dets = []
-                    new_tracks = []
-                    tracks2 = []
-                    t11 = time.time()
-
-                    for det in detections :
-                        iou_test=[]
-                        for i in range(len(tracks)):
-                            iou_test.append(float(bbox_iou(torch.tensor(det['xyxy']),torch.tensor(tracks[i]['xyxy']))))
-                        if len(iou_test)==0:
-                            continue
-                        else :
-                            max_iou = max(iou_test)
+                    if save_img or view_img:  # Add bbox to image
+                        #label = '%s %.2f' % (names[int(cls)], conf)
+                        #확률 삭제
+                        if cls==0 or cls==1 or cls==2 or cls==3 or cls==4 or cls==5:
+                            label = '%s, %s, %s' % (det['id'], names[int(cls)], det['age'])
+                            #좌표확인용
+                            #label = '%s, %s, %s, %s, %s' % (det['id'], names[int(cls)], det['age'], det['ct'][0], det['ct'][1])
+                            plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=2) # 네모굵기
                             
-                        if max_iou > 0.1:
-                            iou_index = iou_test.index(max_iou)
-                            new_track = alpha_beta_tracking(det, tracks[iou_index], alpha=alpha, beta=beta)
-                            new_tracks.append(new_track)
-                            del tracks[iou_index]
-                        else :
-                            dets.append(det)
-                    
-                    tracks2, id_count = init_track(tracks2, dets,id_count,conf_thres)
-                    # print('*************************************************************')
-                    # print(new_tracks)        
-                    # print('-------------------------------------------------------------')
-                    # print(tracks2)        
-                    # print('ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo')
-                    # print(tracks)
-                    
-                    if len(tracks) > 0:
-                        new_tracks = new_tracks # + tracks
-                    #print(len(new_tracks),len(tracks2), id_count)
-                    tracks = new_tracks + tracks2
-                    # print('ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo')
-                    # print(tracks)
-                    circle_tracks.append(tracks)
-                    if len(circle_tracks)>10:
-                        del circle_tracks[0]
-                    # print('33333333',circle_tracks, len(circle_tracks))
-                    '''    
-                    for i in circle_tracks:
-                        for j in circle_tracks[i]:
-                            cv2.circle(im0, circle_tracks[i][j]['ct'], 1, (0,0,255), -1)
-                    '''
-                    #
-                    
-                    '''
-                    f.write('\n')
-                    f.write(str(new_tracks))
-                    f.write('\n')
-                    f.write(str(tracks2))
-                    f.write('\n')
-                    f.write(str(tracks))
-                    f.write('\n')
-                    '''
-                    
-                    #print(ms, '\n', detections, '\n', new_tracks, '\n', tracks2, '\n', tracks)
-                    #print(ms,time.time()-t11, len(tracks))
-                    
-                    #for det in detections:
-                    for det in tracks:
-                        xyxy,conf,cls = det['xyxy'], det['score'], det['cls']
-                        #영역 카운팅 알고리즘
-                        area_t = area_count(area_s, det, area_t)
-                        #print('value,',len(tracks),':', area_t)
-                        if save_txt:  # Write to file
-                            xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                            with open(txt_path + '.txt', 'a') as fd:
-                                fd.write(('%g ' * 5 + '\n') % (cls, *xywh))  # label format
+                            #좌측상단에 태깅 추가
+                            cv2.putText(bg_img, p_d, (0,30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+                            cv2.putText(bg_img, c_d, (0,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+                            cv2.putText(bg_img, b_d, (0,90), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+                            cv2.putText(bg_img, t_d, (0,120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+                            cv2.putText(bg_img, bi_d, (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+                            cv2.putText(bg_img, e_d, (0,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
 
-                        if save_img or view_img:  # Add bbox to image
-                            #label = '%s %.2f' % (names[int(cls)], conf)
-                            #확률 삭제
-                            if cls==0 or cls==1 or cls==2 or cls==3 or cls==4 or cls==5:
-                                label = '%s, %s, %s' % (det['id'], names[int(cls)], det['age'])
-                                #좌표확인용
-                                #label = '%s, %s, %s, %s, %s' % (det['id'], names[int(cls)], det['age'], det['ct'][0], det['ct'][1])
-                                plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=2) # 네모굵기
+            x1 = 10 #class 들여쓰기
+            x2 = 12 #방향 들여쓰기
+            for raw in range(int(len(area_t)/2)+1): #0~(6/2+1)
+                for col in range(len(area_t[0])+1): #0~9
+                    c1 = (1453+80*raw,3+60*col)
+                    c2 = (1530+80*raw,60+60*col)
+                    if raw ==0 and col ==0:
+                        cv2.rectangle(bg_img, c1,c2,(180,180,180),-1,cv2.LINE_AA)
+                        
+                    else:
+                        if raw ==1 and col == 0:
+                            cv2.rectangle(bg_img, c1,c2,(255,255,255),-1,cv2.LINE_AA)
+                            cv2.putText(bg_img,' Car', (c1[0]+x1,c2[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
                                 
-                                #좌측상단에 태깅 추가
-                                cv2.putText(bg_img, p_d, (0,30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                                cv2.putText(bg_img, c_d, (0,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                                cv2.putText(bg_img, b_d, (0,90), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                                cv2.putText(bg_img, t_d, (0,120), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                                cv2.putText(bg_img, bi_d, (0,150), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                                cv2.putText(bg_img, e_d, (0,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-
-                x1 = 10 #class 들여쓰기
-                x2 = 12 #방향 들여쓰기
-                for raw in range(int(len(area_t)/2)+1): #0~(6/2+1)
-                    for col in range(len(area_t[0])+1): #0~9
-                        c1 = (1453+80*raw,3+60*col)
-                        c2 = (1530+80*raw,60+60*col)
-                        if raw ==0 and col ==0:
-                            cv2.rectangle(bg_img, c1,c2,(180,180,180),-1,cv2.LINE_AA)
+                        elif raw ==2 and col == 0:
+                            cv2.rectangle(bg_img, c1,c2,(255,255,255),-1,cv2.LINE_AA)
+                            cv2.putText(bg_img,'Truck', (c1[0]+x1,c2[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)    
                             
+                        elif raw ==3 and col == 0:
+                            cv2.rectangle(bg_img, c1,c2,(255,255,255),-1,cv2.LINE_AA)
+                            cv2.putText(bg_img,' Bus', (c1[0]+x1,c2[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)    
+                            
+                        elif col == 1:
+                            cv2.rectangle(bg_img, c1,c2,(120,120,120),-1,cv2.LINE_AA)
+                            if raw ==0:
+                                cv2.putText(bg_img,'West', (c1[0]+x2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+                                cv2.putText(bg_img,' Out', (c1[0]+x2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+
+                        elif col == 2:
+                            cv2.rectangle(bg_img, c1,c2,(120,120,120),-1,cv2.LINE_AA)
+                            if raw ==0:
+                                cv2.putText(bg_img,'West', (c1[0]+x2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+                                cv2.putText(bg_img,'  In', (c1[0]+x2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+
+                        elif col == 3:
+                            cv2.rectangle(bg_img, c1,c2,(255,120,120),-1,cv2.LINE_AA)
+                            if raw ==0:
+                                cv2.putText(bg_img,'South', (c1[0]+x2-2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+                                cv2.putText(bg_img,' Out', (c1[0]+x2-2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+
+                        elif col == 4:
+                            cv2.rectangle(bg_img, c1,c2,(255,120,120),-1,cv2.LINE_AA)
+                            if raw ==0:
+                                cv2.putText(bg_img,'South', (c1[0]+x2-2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+                                cv2.putText(bg_img,'  In', (c1[0]+x2-2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+
+                        elif col == 5:
+                            cv2.rectangle(bg_img, c1,c2,(120,255,120),-1,cv2.LINE_AA)
+                            if raw ==0:
+                                cv2.putText(bg_img,'East', (c1[0]+x2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+                                cv2.putText(bg_img,' Out', (c1[0]+x2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+
+                        elif col == 6:
+                            cv2.rectangle(bg_img, c1,c2,(120,255,120),-1,cv2.LINE_AA)
+                            if raw ==0:
+                                cv2.putText(bg_img,'East', (c1[0]+x2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+                                cv2.putText(bg_img,'  In', (c1[0]+x2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+
+                        elif col == 7:
+                            cv2.rectangle(bg_img, c1,c2,(120,120,255),-1,cv2.LINE_AA)
+                            if raw ==0:
+                                cv2.putText(bg_img,'North', (c1[0]+x2-2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+                                cv2.putText(bg_img,' Out', (c1[0]+x2-2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+
+                        elif col == 8:
+                            cv2.rectangle(bg_img, c1,c2,(120,120,255),-1,cv2.LINE_AA)
+                            if raw ==0:
+                                cv2.putText(bg_img,'North', (c1[0]+x2-2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+                                cv2.putText(bg_img,'  In', (c1[0]+x2-2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+
+                        if raw ==0 or col == 0:
+                            pass
                         else:
-                            if raw ==1 and col == 0:
-                                cv2.rectangle(bg_img, c1,c2,(255,255,255),-1,cv2.LINE_AA)
-                                cv2.putText(bg_img,' Car', (c1[0]+x1,c2[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-                                    
-                            elif raw ==2 and col == 0:
-                                cv2.rectangle(bg_img, c1,c2,(255,255,255),-1,cv2.LINE_AA)
-                                cv2.putText(bg_img,'Truck', (c1[0]+x1,c2[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)    
-                                
-                            elif raw ==3 and col == 0:
-                                cv2.rectangle(bg_img, c1,c2,(255,255,255),-1,cv2.LINE_AA)
-                                cv2.putText(bg_img,' Bus', (c1[0]+x1,c2[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)    
-                                
-                            elif col == 1:
-                                cv2.rectangle(bg_img, c1,c2,(120,120,120),-1,cv2.LINE_AA)
-                                if raw ==0:
-                                    cv2.putText(bg_img,'West', (c1[0]+x2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-                                    cv2.putText(bg_img,' Out', (c1[0]+x2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+                            str_count = area_list2(area_t,m=raw-1,n=col-1)
+                            #print(raw,col,str_count)
+                            cv2.putText(bg_img,str(str_count), (c1[0]+30,c2[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+            
+            #print(area_t)
+                        
+            # Print time (inference + NMS)
+            #-----------------------------------------------------------------------------#
+            #print('%s Done. (%.3fs)' % (s, t2 - t1))
+            sec = curTime - prevTime
+            prevTime = curTime
+            fpss = 2/sec
+            #print('Estimated fps 1 : {0}'.format(fps))
 
-                            elif col == 2:
-                                cv2.rectangle(bg_img, c1,c2,(120,120,120),-1,cv2.LINE_AA)
-                                if raw ==0:
-                                    cv2.putText(bg_img,'West', (c1[0]+x2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-                                    cv2.putText(bg_img,'  In', (c1[0]+x2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
+            # Stream results
+            if view_img:
+                strs = "FPS : %0.1f" %fpss
+                #cv2.putText(bg_img, strs, (0,210), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+                cv2.imshow(p, im0)
+                if cv2.waitKey(1) == ord('w'):
+                    cv2.imwrite("test.png",im0)
+                if cv2.waitKey(1) == ord('q'):  # q to quit
+                    raise StopIteration
 
-                            elif col == 3:
-                                cv2.rectangle(bg_img, c1,c2,(255,120,120),-1,cv2.LINE_AA)
-                                if raw ==0:
-                                    cv2.putText(bg_img,'South', (c1[0]+x2-2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-                                    cv2.putText(bg_img,' Out', (c1[0]+x2-2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
 
-                            elif col == 4:
-                                cv2.rectangle(bg_img, c1,c2,(255,120,120),-1,cv2.LINE_AA)
-                                if raw ==0:
-                                    cv2.putText(bg_img,'South', (c1[0]+x2-2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-                                    cv2.putText(bg_img,'  In', (c1[0]+x2-2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-
-                            elif col == 5:
-                                cv2.rectangle(bg_img, c1,c2,(120,255,120),-1,cv2.LINE_AA)
-                                if raw ==0:
-                                    cv2.putText(bg_img,'East', (c1[0]+x2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-                                    cv2.putText(bg_img,' Out', (c1[0]+x2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-
-                            elif col == 6:
-                                cv2.rectangle(bg_img, c1,c2,(120,255,120),-1,cv2.LINE_AA)
-                                if raw ==0:
-                                    cv2.putText(bg_img,'East', (c1[0]+x2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-                                    cv2.putText(bg_img,'  In', (c1[0]+x2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-
-                            elif col == 7:
-                                cv2.rectangle(bg_img, c1,c2,(120,120,255),-1,cv2.LINE_AA)
-                                if raw ==0:
-                                    cv2.putText(bg_img,'North', (c1[0]+x2-2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-                                    cv2.putText(bg_img,' Out', (c1[0]+x2-2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-
-                            elif col == 8:
-                                cv2.rectangle(bg_img, c1,c2,(120,120,255),-1,cv2.LINE_AA)
-                                if raw ==0:
-                                    cv2.putText(bg_img,'North', (c1[0]+x2-2,c1[1]+25), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-                                    cv2.putText(bg_img,'  In', (c1[0]+x2-2,c1[1]+45), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-
-                            if raw ==0 or col == 0:
-                                pass
-                            else:
-                                str_count = area_list2(area_t,m=raw-1,n=col-1)
-                                #print(raw,col,str_count)
-                                cv2.putText(bg_img,str(str_count), (c1[0]+30,c2[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 3/5, (0,0,0),1,lineType=cv2.LINE_AA)
-                
-                #print(area_t)
-                            
-                # Print time (inference + NMS)
-                #-----------------------------------------------------------------------------#
-                #print('%s Done. (%.3fs)' % (s, t2 - t1))
-                sec = curTime - prevTime
-                prevTime = curTime
-                fpss = 2/sec
-                #print('Estimated fps 1 : {0}'.format(fps))
-
-                # Stream results
-                if view_img:
+            # Save results (image with detections)
+            if save_img:
+                if dataset.mode == 'images':
+                    cv2.imwrite(save_path, im0)
+                else:
+                    ##210118------------------------------------------------------------
                     strs = "FPS : %0.1f" %fpss
-                    #cv2.putText(bg_img, strs, (0,210), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                    cv2.imshow(p, im0)
+                    cv2.putText(bg_img, strs, (0,210), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
+                    video_size = im0.shape
+                    
+                    over_img = overlay(im0, bg_img, position=(int(video_size[1]/2), 0))
+                    over_img_size = over_img.shape
+                    cv2.imshow(p, over_img)
+                    print(p)
+                    #time.sleep(0.5)
                     if cv2.waitKey(1) == ord('w'):
-                        cv2.imwrite("test.png",im0)
+                        cv2.imwrite("/images/aidrone.png",im0)
+                        cv2.imwrite("/images/aidrone2.png",over_img)
                     if cv2.waitKey(1) == ord('q'):  # q to quit
                         raise StopIteration
+                    
+                    if vid_path != save_path:  # new video
+                        vid_path = save_path
+                        if isinstance(vid_writer, cv2.VideoWriter):
+                            vid_writer.release()  # release previous video writer
 
+                        fourcc = 'mp4v'  # output video codec
+                        fps = vid_cap.get(cv2.CAP_PROP_FPS)
 
-                # Save results (image with detections)
-                if save_img:
-                    if dataset.mode == 'images':
-                        cv2.imwrite(save_path, im0)
-                    else:
-                        ##210118------------------------------------------------------------
-                        strs = "FPS : %0.1f" %fpss
-                        cv2.putText(bg_img, strs, (0,210), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255),2)
-                        video_size = im0.shape
+                        w1 = int(over_img_size[1])
+                        h1 = int(over_img_size[0])
+                        #print(w1,h1)
+                        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (w1, h1))
+                    vid_writer.write(over_img)
+                    ##
                         
-                        over_img = overlay(im0, bg_img, position=(int(video_size[1]/2), 0))
-                        over_img_size = over_img.shape
-                        cv2.imshow(p, over_img)
-                        print(p)
-                        #time.sleep(0.5)
-                        if cv2.waitKey(1) == ord('w'):
-                            cv2.imwrite("/images/aidrone.png",im0)
-                            cv2.imwrite("/images/aidrone2.png",over_img)
-                        if cv2.waitKey(1) == ord('q'):  # q to quit
-                            raise StopIteration
-                        
-                        if vid_path != save_path:  # new video
-                            vid_path = save_path
-                            if isinstance(vid_writer, cv2.VideoWriter):
-                                vid_writer.release()  # release previous video writer
-
-                            fourcc = 'mp4v'  # output video codec
-                            fps = vid_cap.get(cv2.CAP_PROP_FPS)
-
-                            w1 = int(over_img_size[1])
-                            h1 = int(over_img_size[0])
-                            #print(w1,h1)
-                            vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), fps, (w1, h1))
-                        vid_writer.write(over_img)
-                        ##
-                            
-            sec1 = curTime1 - prevTime1
-            prevTime1 = curTime1
-            fps1 = 1/sec
-            #print('Estimated fps 2 : {0}'.format(fps1))
+        sec1 = curTime1 - prevTime1
+        prevTime1 = curTime1
+        fps1 = 1/sec
+        #print('Estimated fps 2 : {0}'.format(fps1))
             
             
 

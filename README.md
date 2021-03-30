@@ -19,7 +19,7 @@ $ conda env create -f crossroad_service.yml
 
 서비스를 사용하기 위해 학습하는 명령어는 아래와 같습니다.
 ```bash
-$ python train.py --weights yolov5s.pt --data (data 경로) --cfg yolov5s.yaml --epochs 300
+$ python train.py --weights yolov5s.pt --data (data 경로) --cfg models/yolov5s.yaml --epochs 300
 ```
 
 다중 GPU를 풀 가동하기 위해서는 아래의 명령어로 사용합니다.
@@ -31,10 +31,10 @@ $ python -m torch.distributed.launch --nproc_per_node (gpu 개수) train.py --we
 ```bash
 $ python detect_aidrone.py --weights 300ep_uhd_c6_best.pt --source drone_video2.MP4
 ```
-기존의 학습 파일은 [여기](https://url.kr/nk8e6q)에서 다운받을 수 있습니다.
-예제의 영상은 [여기](https://url.kr/3o94sm)에서 다운받을 수 있습니다.
+이제부터 기존의 학습 파일은 [여기](https://url.kr/nk8e6q)에서 다운받을 수 있습니다.
+또한 예제의 영상은 [여기](https://url.kr/3o94sm)에서 다운받을 수 있습니다.
 
-학습한 [pt파일]과 예제에 사용된 [영상]은 링크에 첨부되어있습니다.
+학습한 [pt파일](https://url.kr/nk8e6q)과 예제에 사용된 [영상](https://url.kr/3o94sm)은 링크에 첨부되어있습니다.
 
 영상의 Counting 영역을 지정하기 위한 오토툴은 현재 구상중에 있습니다.
 그 전까지는 영상을 실행하여서 w키를 눌러서 이미지를 저장시키며 aidrone.png를 통해 영역의 좌표를 직접 계산하여야 합니다.

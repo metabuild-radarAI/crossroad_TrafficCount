@@ -1,6 +1,5 @@
 name: crossroad_service
 channels:
-  - pytorch
   - defaults
 dependencies:
   - blas=1.0=mkl
@@ -18,17 +17,17 @@ dependencies:
   - mkl_fft=1.2.0=py37h45dec08_0
   - mkl_random=1.1.1=py37h47e9c7a_0
   - ninja=1.10.1=py37h7ef1ec2_0
+  - numpy=1.19.2=py37hadc3359_0
+  - numpy-base=1.19.2=py37ha3acd2a_0
   - olefile=0.46=py37_0
   - openssl=1.1.1g=he774522_1
   - pillow=7.2.0=py37hcc1f983_0
   - pip=20.2.2=py37_0
   - python=3.7.9=h60c2a47_0
-  - pytorch=1.6.0=py3.7_cuda101_cudnn7_0
   - setuptools=49.6.0=py37_0
   - six=1.15.0=py_0
   - sqlite=3.33.0=h2a8f88b_0
   - tk=8.6.10=he774522_0
-  - torchvision=0.7.0=py37_cu101
   - vc=14.1=h0510ff6_4
   - vs2015_runtime=14.16.27012=hf0eaf9b_3
   - wheel=0.35.1=py_0
@@ -53,7 +52,6 @@ dependencies:
     - kiwisolver==1.2.0
     - markdown==3.2.2
     - matplotlib==3.3.2
-    - numpy==1.19.2
     - oauthlib==3.1.0
     - opencv-python==4.4.0.42
     - pandas==1.2.0
@@ -74,8 +72,11 @@ dependencies:
     - tensorboard==2.3.0
     - tensorboard-plugin-wit==1.7.0
     - threadpoolctl==2.1.0
+    - torch==1.7.1+cu110
+    - torchvision==0.8.2+cu110
     - tqdm==4.49.0
+    - typing-extensions==3.7.4.3
     - urllib3==1.25.10
     - werkzeug==1.0.1
     - zipp==3.1.0
-prefix: C:\Users\KMS\anaconda3\envs\yolov5
+prefix: C:\Users\KMS\anaconda3\envs\crossroad_service
